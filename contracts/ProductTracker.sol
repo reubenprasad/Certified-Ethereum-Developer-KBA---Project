@@ -24,6 +24,14 @@ contract ProductTracker {
         address payable ownerAddress
   );
 
+  event ProductPurchased(
+        string name,
+        uint dateOfPurchase,
+        uint warrantyPeriod,
+        uint price,
+        address payable ownerAddress
+  );
+
   constructor () public {
    product_manufacturer = msg.sender;
     }
@@ -38,22 +46,40 @@ contract ProductTracker {
        _;
     }
 
-   function addProduct(uint _pId, string memory _name, uint _dateOfPurchase,uint _wPeriod, uint _price) public only_manufacturer{
+   function addProduct(string memory _name, uint _dateOfPurchase,uint _wPeriod, uint _price) public only_manufacturer{
        //Require a valid name
         require(bytes(_name).length > 0, 'name cannot be empty');
        //Require a valid price
         require(_price > 0,'price cannot be 0');
-       //Add the Product
-        product[_pId] = productDetail(_name, _dateOfPurchase, _wPeriod, _price, product_manufacturer);
        //Increment the Product Count
         productCount++;
+       //Add the Product
+        product[productCount] = productDetail(_name, _dateOfPurchase, _wPeriod, _price, product_manufacturer);
        //Emit an event when product is added
         emit ProductAdded(_name, _dateOfPurchase, _wPeriod, _price, product_manufacturer);
 
     }
 
     function buyProduct(uint _pId) public payable buy_conditions{
-        require(msg.value > product[_pId].price, "Value of sent ether is less than product price");
+        //Fetch the product
+        productDetail memory _product = product[_pId];
+        //Fetch the owner
+        address payable _seller = _product.ownerAddress;
+        //Ensure that the product has a valid id
+        require(_pId > 0 && _pId <= productCount);
+        //Ensure that buyer sends enough ether
+        require(msg.value >= _product.price);
+        //Ensure that the product has not been purchased already ------------X
+        //Transfer the ownership
+        _product.ownerAddress = msg.sender;
+        //Update the product
+        product[_pId] = _product;
+        //Transfer Ether to the seller
+        address(_seller).transfer(msg.value);
+        //Emit an event
+        emit ProductPurchased(_product.name, _product.dateOfPurchase, _product.warrantyPeriod, _product.price, msg.sender);
+
+      //  require(msg.value > product[_pId].price, "Value of sent ether is less than product price");
         
     }
 }
